@@ -138,6 +138,7 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   padding:4px 4px 4px 26px;
   display:flex; align-items:center; gap:12px;
   width:min(360px, 72vw);
+  overflow:hidden;
   transition:border-color .4s, box-shadow .4s;
 }
 .gate-input-wrap.glow{
@@ -157,7 +158,7 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   80%{ transform:translateX(3px); }
 }
 #gate-input{
-  flex:1; background:none; border:none; outline:none;
+  flex:1; min-width:0; background:none; border:none; outline:none;
   color:var(--white); font-size:14.5px; letter-spacing:.03em;
   font-family:var(--sans); padding:12px 0;
 }
@@ -472,7 +473,10 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   transition:transform .7s var(--ease);
 }
 .player.visible{ transform:translateX(-50%) translateY(0); }
-@media (max-width:720px){ .player{ bottom:76px; padding:10px 14px; } }
+@media (max-width:720px){
+  .player{ bottom:76px; padding:10px 14px; }
+  .gate-input-wrap{ width:min(360px, calc(100vw - 32px)); }
+}
 
 .player-grid{ display:flex; align-items:center; gap:18px; }
 .player-track{ display:flex; align-items:center; gap:14px; min-width:0; flex:1; }
@@ -483,6 +487,60 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   animation:spin 8s linear infinite; animation-play-state:paused;
 }
 .mini-vinyl.spinning{ animation-play-state:running; }
+
+/* Mobile-only controls revealed from the rotating song icon */
+.mobile-song-controls{
+  display:none;
+}
+@media (max-width:720px){
+  .mobile-song-controls{
+    position:absolute;
+    left:0;
+    bottom:calc(100% + 10px);
+    z-index:151;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:7px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:rgba(16,16,17,.88);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    box-shadow:0 18px 40px -16px rgba(0,0,0,.8);
+    opacity:0;
+    visibility:hidden;
+    transform:translateY(6px) scale(.96);
+    transform-origin:left bottom;
+    pointer-events:none;
+    transition:opacity .25s var(--ease), transform .25s var(--ease), visibility .25s;
+  }
+  .mobile-song-controls.open{
+    opacity:1;
+    visibility:visible;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .mobile-song-control{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mobile-song-control.play{
+    background:var(--white);
+    color:var(--black-1);
+  }
+  .mobile-song-control svg{
+    width:15px;
+    height:15px;
+  }
+}
 .mini-vinyl-art{
   position:absolute; inset:14%; border-radius:50%; background-size:cover; background-position:center;
 }
@@ -731,6 +789,17 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   <div class="player-grid">
     <div class="player-track">
       <div class="mini-vinyl" id="miniVinyl"><div class="mini-vinyl-art" id="miniVinylArt"></div></div>
+      <div class="mobile-song-controls" id="mobileSongControls" aria-hidden="true">
+        <button class="mobile-song-control" id="mobilePrevBtn" aria-label="Previous Song">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-11-7z"/></svg>
+        </button>
+        <button class="mobile-song-control play" id="mobilePlayBtn" aria-label="Pause">
+          <svg id="mobilePlayIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
+        </button>
+        <button class="mobile-song-control" id="mobileNextBtn" aria-label="Next Song">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5h-2v14h2zM4 5v14l11-7z"/></svg>
+        </button>
+      </div>
       <div class="player-meta">
         <h5 id="playerTitle">Choose a song</h5>
         <p id="playerArtist">from any category</p>
@@ -951,6 +1020,7 @@ gateForm.addEventListener("submit", function(e){
 });
 
 function wrongPassword(){
+  gateError.innerHTML = `Wrong password!<br>Official Password: ${SECRET_PASSWORD}`;
   gateInputWrap.classList.remove("glow");
   gateInputWrap.classList.add("error");
   gateError.classList.add("show");
@@ -1238,6 +1308,11 @@ const heroVinyl = document.getElementById("heroVinyl");
 const playerTitle = document.getElementById("playerTitle");
 const playerArtist = document.getElementById("playerArtist");
 const playerHeart = document.getElementById("playerHeart");
+const mobileSongControls = document.getElementById("mobileSongControls");
+const mobilePrevBtn = document.getElementById("mobilePrevBtn");
+const mobilePlayBtn = document.getElementById("mobilePlayBtn");
+const mobileNextBtn = document.getElementById("mobileNextBtn");
+const mobilePlayIcon = document.getElementById("mobilePlayIcon");
 const progressBar = document.getElementById("progressBar");
 const progressFill = document.getElementById("progressFill");
 const curTimeEl = document.getElementById("curTime");
@@ -1328,6 +1403,7 @@ function setPlaying(state){
     ? '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>'
     : '<path d="M6 4l14 8-14 8V4z"/>';
   miniVinyl.classList.toggle("spinning", state);
+  updateMobileSongControls();
   heroVinyl.style.animationPlayState = state ? "running" : "paused";
   toggleVisualizer(state);
 
@@ -1338,6 +1414,29 @@ function setPlaying(state){
   if(!audioEl.src){ /* simulated */ } else { state ? audioEl.play().catch(()=>{}) : audioEl.pause(); }
   renderSongList();
 }
+
+function updateMobileSongControls(){
+  if(!mobilePlayBtn) return;
+  mobilePlayIcon.innerHTML = isPlaying
+    ? '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>'
+    : '<path d="M6 4l14 8-14 8V4z"/>';
+  mobilePlayBtn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+}
+
+mobileSongControls.addEventListener("click", e=>e.stopPropagation());
+miniVinyl.addEventListener("click", e=>{
+  if(!isTouch() || currentIndex===-1) return;
+  e.stopPropagation();
+  const open = mobileSongControls.classList.toggle("open");
+  mobileSongControls.setAttribute("aria-hidden", open ? "false" : "true");
+  updateMobileSongControls();
+});
+mobilePrevBtn.addEventListener("click", ()=>{ if(currentIndex>-1) prevSong(); });
+mobilePlayBtn.addEventListener("click", ()=>{
+  if(currentIndex===-1) return;
+  setPlaying(!isPlaying);
+});
+mobileNextBtn.addEventListener("click", ()=>{ if(currentIndex>-1) nextSong(); });
 
 playBtn.addEventListener("click", ()=>{
   if(currentIndex===-1){ playSongAt(0); return; }
