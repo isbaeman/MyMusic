@@ -628,6 +628,11 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
 @media (prefers-reduced-motion: reduce){
   *{ animation-duration:.001s !important; animation-iteration-count:1 !important; transition-duration:.2s !important; }
 }
+
+.mobile-song-control svg path[d="M7 7h10v10H7z"]{
+  fill:currentColor;
+  stroke:none;
+}
 </style>
 </head>
 <body>
@@ -798,6 +803,9 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
         </button>
         <button class="mobile-song-control" id="mobileNextBtn" aria-label="Next Song">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5h-2v14h2zM4 5v14l11-7z"/></svg>
+        </button>
+        <button class="mobile-song-control" id="mobileStopBtn" aria-label="Stop" title="Stop">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z"/></svg>
         </button>
       </div>
       <div class="player-meta">
@@ -1312,6 +1320,7 @@ const mobileSongControls = document.getElementById("mobileSongControls");
 const mobilePrevBtn = document.getElementById("mobilePrevBtn");
 const mobilePlayBtn = document.getElementById("mobilePlayBtn");
 const mobileNextBtn = document.getElementById("mobileNextBtn");
+const mobileStopBtn = document.getElementById("mobileStopBtn");
 const mobilePlayIcon = document.getElementById("mobilePlayIcon");
 const progressBar = document.getElementById("progressBar");
 const progressFill = document.getElementById("progressFill");
@@ -1437,6 +1446,18 @@ mobilePlayBtn.addEventListener("click", ()=>{
   setPlaying(!isPlaying);
 });
 mobileNextBtn.addEventListener("click", ()=>{ if(currentIndex>-1) nextSong(); });
+
+mobileStopBtn.addEventListener("click", ()=>{
+  if(currentIndex>-1){
+    audioEl.pause();
+    audioEl.currentTime = 0;
+    setPlaying(false);
+  }
+  mobileSongControls.classList.remove("open");
+  mobileSongControls.setAttribute("aria-hidden","true");
+  miniVinyl.setAttribute("aria-expanded","false");
+});
+
 
 playBtn.addEventListener("click", ()=>{
   if(currentIndex===-1){ playSongAt(0); return; }
