@@ -1413,6 +1413,14 @@ function setupMediaSession(){
     if(currentIndex>-1) setPlaying(false);
   });
 
+  // Stop playback completely from mobile/lock-screen media controls
+  setHandler("stop", ()=>{
+    if(currentIndex>-1){
+      setPlaying(false);
+      try{ audioEl.currentTime = 0; }catch(err){}
+    }
+  });
+
   setHandler("nexttrack", ()=>{
     if(currentIndex>-1) nextSong();
   });
