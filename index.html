@@ -633,6 +633,26 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:none
   fill:currentColor;
   stroke:none;
 }
+
+/* Smaller password bar — dimensions only */
+.gate-input-wrap{
+  width:min(320px,68vw) !important;
+}
+#gate-input{
+  min-width:0;
+  padding-left:12px !important;
+  padding-right:6px !important;
+}
+.gate-input-wrap button{
+  width:34px !important;
+  height:34px !important;
+  min-width:34px !important;
+}
+@media (max-width:720px){
+  .gate-input-wrap{
+    width:min(300px,calc(100vw - 52px)) !important;
+  }
+}
 </style>
 </head>
 <body>
