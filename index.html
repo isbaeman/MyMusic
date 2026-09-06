@@ -1253,11 +1253,13 @@ function playSongAt(idx){
   playerArtist.textContent = s.artist;
   miniVinylArt.style.backgroundImage = `url('${s.cover}')`;
   updatePlayerHeart();
+  updateMediaSessionMetadata(s);
 
   // slide vinyl swap
   miniVinyl.animate([{ transform:"translateX(0) scale(1)", opacity:1 },{ transform:"translateX(-14px) scale(.85)", opacity:.3 },{ transform:"translateX(0) scale(1)", opacity:1 }], { duration:500, easing:"cubic-bezier(.22,1,.36,1)" });
 
   if(s.src){
+    clearInterval(simInterval);
     audioEl.src = s.src;
     audioEl.play().catch(()=>{ /* file likely doesn't exist yet — simulate instead */ simulatePlayback(); });
   } else {
@@ -1304,7 +1306,20 @@ function updateProgressUI(cur, dur){
 audioEl.addEventListener("timeupdate", ()=>{
   if(audioEl.duration){ updateProgressUI(audioEl.currentTime, audioEl.duration); durTimeEl.textContent = secondsToTime(audioEl.duration); }
 });
-audioEl.addEventListener("ended", ()=>{ if(repeatMode===2){ audioEl.currentTime=0; audioEl.play(); } else { nextSong(); } });
+audioEl.addEventListener("ended", ()=>{
+  if(repeatMode===2){
+    audioEl.currentTime=0;
+    audioEl.play().catch(()=>{});
+  } else {
+    nextSong();
+  }
+});
+audioEl.addEventListener("play", ()=>{
+  if(!isPlaying) setPlaying(true);
+});
+audioEl.addEventListener("pause", ()=>{
+  if(isPlaying) setPlaying(false);
+});
 audioEl.addEventListener("error", ()=>{ if(currentIndex>-1) simulatePlayback(); });
 
 function setPlaying(state){
@@ -1315,6 +1330,11 @@ function setPlaying(state){
   miniVinyl.classList.toggle("spinning", state);
   heroVinyl.style.animationPlayState = state ? "running" : "paused";
   toggleVisualizer(state);
+
+  if('mediaSession' in navigator){
+    try{ navigator.mediaSession.playbackState = state ? "playing" : "paused"; }catch(err){}
+  }
+
   if(!audioEl.src){ /* simulated */ } else { state ? audioEl.play().catch(()=>{}) : audioEl.pause(); }
   renderSongList();
 }
@@ -1348,6 +1368,61 @@ function prevSong(){
   listIdx = (listIdx-1+currentList.length) % currentList.length;
   playSongAt(songs.indexOf(currentList[listIdx]));
 }
+
+/* ============================================================
+   MOBILE / OS MEDIA CONTROLS — Media Session API
+   Connects directly to the existing player functions above.
+   No visible player/UI is added or changed.
+   ============================================================ */
+function updateMediaSessionMetadata(song){
+  if(!('mediaSession' in navigator) || !song) return;
+
+  try{
+    const artwork = song.cover ? [{
+      src: song.cover,
+      sizes: "512x512"
+    }] : [];
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title || "",
+      artist: song.artist || "",
+      album: song.album || "My Music Universe",
+      artwork
+    });
+  }catch(err){}
+}
+
+function setupMediaSession(){
+  if(!('mediaSession' in navigator)) return;
+
+  const setHandler = (action, handler)=>{
+    try{
+      navigator.mediaSession.setActionHandler(action, handler);
+    }catch(err){}
+  };
+
+  setHandler("play", ()=>{
+    if(currentIndex===-1){
+      playSongAt(0);
+    }else{
+      setPlaying(true);
+    }
+  });
+
+  setHandler("pause", ()=>{
+    if(currentIndex>-1) setPlaying(false);
+  });
+
+  setHandler("nexttrack", ()=>{
+    if(currentIndex>-1) nextSong();
+  });
+
+  setHandler("previoustrack", ()=>{
+    if(currentIndex>-1) prevSong();
+  });
+}
+
+setupMediaSession();
 
 document.getElementById("shuffleBtn").addEventListener("click", function(){
   isShuffle = !isShuffle;
@@ -1419,7 +1494,13 @@ let visRunning=false;
 function toggleVisualizer(state){
   visRunning = state;
   if(state){
-    if(audioEl.src) ensureAudioGraph();
+    /*
+      Keep mobile audio as a direct HTMLAudioElement.
+      Some mobile browsers can suspend Web Audio contexts when the
+      screen locks/backgrounds, which can interrupt background playback.
+      Desktop visualizer behavior remains unchanged.
+    */
+    if(audioEl.src && !isTouch()) ensureAudioGraph();
     if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
     requestAnimationFrame(drawVisualizer);
   }
